@@ -13,7 +13,7 @@ def generate_files(count, outdir):
     if not os.path.isdir(outdir):
         os.mkdir(outdir)
     for i in xrange(count):
-        outfile = os.path.join(outdir, '%s.txt' % (i,))
+        outfile = os.path.join(outdir, '%s.file' % (i,))
         num_bytes = random.expovariate(1.5) * 1024
         cmd = ['dd', 'if=/dev/urandom', 'of=%s' % (outfile,), 'bs=1024', 'count=%d' % (num_bytes,)]
         subprocess.call(cmd)
@@ -25,7 +25,7 @@ def transfer_files(mode, source_host, local_dir, numtrials=1, keyfile=None):
         os.remove(os.path.join(local_dir, filename))
     if mode == 'nfs':
         remote_dir = os.path.join('/mnt/nfs-filestore/', source_host)
-        file_list = [filename for filename in os.listtdir(remote_dir)]
+        file_list = [filename for filename in os.listdir(remote_dir)]
         with Timer() as t:
             for _ in xrange(numtrials):
                 for filename in file_list:
@@ -39,11 +39,11 @@ def transfer_files(mode, source_host, local_dir, numtrials=1, keyfile=None):
         with Timer() as t:
             for _ in xrange(numtrials):
                 for filepath in file_list:
-                    scp_cmd = ['scp', '-o StrictHostKeyChecking=no', '-i', keyfile, '%s:%s' % (source_host, filepath.strip(),), local_dir]
+                    scp_cmd = ['scp', '-o StrictHostKeyChecking=no', '-c', 'arcfour', '-i', keyfile, '%s:%s' % (source_host, filepath.strip(),), local_dir]
                     subprocess.call(scp_cmd)
     elif mode == 'tar':
-        remote_dir = '/mnt/scp-filestore'
-        ssh_cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', '-i', keyfile, 'ubuntu@%s' % (source_host,), 'find {0} -type f -printf "%f\n"'.format(remote_dir)]
+        remote_dir = '/mnt/tar-filestore'
+        ssh_cmd = ['ssh', '-o', 'StrictHostKeyChecking=no', '-c', 'arcfour', '-i', keyfile, 'ubuntu@%s' % (source_host,), 'find {0} -type f -printf "%f\n"'.format(remote_dir)]
         ssh = subprocess.Popen(ssh_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         file_list = [filename.strip() for filename in ssh.stdout.readlines()]
         with Timer() as t:
