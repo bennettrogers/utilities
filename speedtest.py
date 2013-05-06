@@ -1,5 +1,6 @@
-import os, sys, argparse, random, subprocess, shutil
+import os, argparse, random, subprocess, shutil
 import time
+import requests
 
 class Timer:
     def __enter__(self):
@@ -54,13 +55,26 @@ def transfer_files(mode, source_host, local_dir, numtrials=1, keyfile=None):
                     fetch_process = subprocess.Popen(fetch_cmd, stdout=subprocess.PIPE)
                     write_process = subprocess.Popen(write_cmd, stdin=fetch_process.stdout, stdout=subprocess.PIPE)
                     out, err = write_process.communicate()
+    elif mode == 'http':
+        file_list = [filename.strip() for filename in ssh.stdout.readlines()]
+        with Timer() as t:
+            for _ in xrange(numtrials):
+                for filename in file_list:
+                    remote_path = 'http://{0}/{1}'.format(source_host, filename,)
+                    local_path = os.path.join(local_dir, filename)
+                    response = requests.get(remote_path)
+                    if not response.ok:
+                        raise Exception('Error getting file from HTTP filestore')
+                    with open(local_path, 'wb') as local_file:
+                        for chunk in response.iter_content():
+                            local_file.write(chunk)
 
     # print some statistics
     numfiles = len([filename for filename in os.listdir(local_dir)])
     batchsize = sum([os.path.getsize(os.path.join(local_dir, filename)) for filename in os.listdir(local_dir)])
     stats = '''
     %d trials
-    %.02f MB per trial 
+    %.02f MB per trial
     %d files per trial
     %.02f MB total
     %d files total
